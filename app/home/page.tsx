@@ -1050,12 +1050,6 @@ export default function HomePage() {
                   ❈
                 </div>
 
-                {/* Fallback icon */}
-
-                <span className="game-icon">
-                  {game.icon}
-                </span>
-
                 {/* Location */}
 
                 <label>
