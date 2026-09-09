@@ -10,13 +10,20 @@ type Word = {
   category: string;
 };
 
+/* ============================================================
+   SPEECH RECOGNITION TYPES
+   ============================================================ */
+
+type SpeechRecognitionResultLike = {
+  [index: number]: {
+    transcript: string;
+    confidence?: number;
+  };
+};
+
 type SpeechRecognitionEventLike = Event & {
   results: {
-    [index: number]: {
-      [index: number]: {
-        transcript: string;
-      };
-    };
+    [index: number]: SpeechRecognitionResultLike;
     length: number;
   };
 };
@@ -48,13 +55,6 @@ interface SpeechRecognitionLike {
 
 type SpeechRecognitionConstructor =
   new () => SpeechRecognitionLike;
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
 
 /* ============================================================
    TAMIL WORDS
@@ -260,7 +260,8 @@ export default function TamilLanguagePage() {
      AUDIO REF
      ============================================================ */
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef =
+    useRef<HTMLAudioElement | null>(null);
 
   /* ============================================================
      SPEECH RECOGNITION REF
@@ -323,14 +324,13 @@ export default function TamilLanguagePage() {
     const dataSize =
       pcmData.length;
 
-    const buffer = new ArrayBuffer(
-      44 + dataSize
-    );
+    const buffer =
+      new ArrayBuffer(
+        44 + dataSize
+      );
 
     const view =
       new DataView(buffer);
-
-    /* RIFF */
 
     writeString(
       view,
@@ -349,8 +349,6 @@ export default function TamilLanguagePage() {
       8,
       "WAVE"
     );
-
-    /* fmt */
 
     writeString(
       view,
@@ -400,8 +398,6 @@ export default function TamilLanguagePage() {
       true
     );
 
-    /* data */
-
     writeString(
       view,
       36,
@@ -450,10 +446,6 @@ export default function TamilLanguagePage() {
     }
 
     try {
-      /* ---------------------------------------------
-         Stop previous audio
-         --------------------------------------------- */
-
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
@@ -462,10 +454,6 @@ export default function TamilLanguagePage() {
 
       setSpeechError("");
       setIsSpeaking(true);
-
-      /* ---------------------------------------------
-         CALL NEXT.JS API
-         --------------------------------------------- */
 
       const response = await fetch(
         "/api/tts",
@@ -483,20 +471,6 @@ export default function TamilLanguagePage() {
           }),
         }
       );
-
-      /* =================================================
-         IMPORTANT FIX
-
-         Do NOT directly call response.json().
-
-         If /api/tts returns an HTML error page,
-         response.json() produces:
-
-         Unexpected token '<'
-         
-         We first read the response as text and then
-         safely convert it to JSON.
-         ================================================= */
 
       const responseText =
         await response.text();
@@ -522,11 +496,6 @@ export default function TamilLanguagePage() {
           responseText
         );
       } catch {
-        /* ---------------------------------------------
-           The API returned HTML or another non-JSON
-           response.
-           --------------------------------------------- */
-
         if (
           responseText
             .trim()
@@ -548,10 +517,6 @@ export default function TamilLanguagePage() {
         );
       }
 
-      /* ---------------------------------------------
-         CHECK API STATUS
-         --------------------------------------------- */
-
       if (!response.ok) {
         throw new Error(
           data?.error ||
@@ -560,19 +525,11 @@ export default function TamilLanguagePage() {
         );
       }
 
-      /* ---------------------------------------------
-         CHECK AUDIO
-         --------------------------------------------- */
-
       if (!data?.audio) {
         throw new Error(
           "Gemini did not return any audio."
         );
       }
-
-      /* ---------------------------------------------
-         GEMINI PCM → WAV
-         --------------------------------------------- */
 
       const wavBlob =
         pcmToWav(
@@ -587,10 +544,6 @@ export default function TamilLanguagePage() {
           wavBlob
         );
 
-      /* ---------------------------------------------
-         CREATE AUDIO
-         --------------------------------------------- */
-
       const audio =
         new Audio(audioUrl);
 
@@ -599,17 +552,9 @@ export default function TamilLanguagePage() {
 
       audio.volume = 1;
 
-      /* ---------------------------------------------
-         AUDIO PLAY
-         --------------------------------------------- */
-
       audio.onplay = () => {
         setIsSpeaking(true);
       };
-
-      /* ---------------------------------------------
-         AUDIO FINISHED
-         --------------------------------------------- */
 
       audio.onended = () => {
         setIsSpeaking(false);
@@ -621,10 +566,6 @@ export default function TamilLanguagePage() {
         audioRef.current =
           null;
       };
-
-      /* ---------------------------------------------
-         AUDIO ERROR
-         --------------------------------------------- */
 
       audio.onerror = () => {
         console.error(
@@ -644,10 +585,6 @@ export default function TamilLanguagePage() {
           "The Tamil audio was generated but could not be played."
         );
       };
-
-      /* ---------------------------------------------
-         PLAY AUDIO
-         --------------------------------------------- */
 
       await audio.play();
     } catch (error) {
@@ -705,9 +642,23 @@ export default function TamilLanguagePage() {
     setSpeechError("");
     setRecognizedText("");
 
+    /*
+     * IMPORTANT:
+     * Do not declare SpeechRecognition globally.
+     * Other language pages also use speech recognition.
+     * Keeping this type local prevents duplicate global
+     * TypeScript declarations.
+     */
+
+    const speechWindow =
+      window as typeof window & {
+        SpeechRecognition?: SpeechRecognitionConstructor;
+        webkitSpeechRecognition?: SpeechRecognitionConstructor;
+      };
+
     const SpeechRecognition =
-      window.SpeechRecognition ||
-      window.webkitSpeechRecognition;
+      speechWindow.SpeechRecognition ||
+      speechWindow.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setSpeechError(
@@ -724,8 +675,6 @@ export default function TamilLanguagePage() {
       recognitionRef.current =
         recognition;
 
-      /* Tamil */
-
       recognition.lang =
         "ta-IN";
 
@@ -735,19 +684,11 @@ export default function TamilLanguagePage() {
       recognition.interimResults =
         true;
 
-      /* ---------------------------------------------
-         START
-         --------------------------------------------- */
-
       recognition.onstart = () => {
         setIsListening(true);
         setIsRecognizing(false);
         setSpeechError("");
       };
-
-      /* ---------------------------------------------
-         RESULT
-         --------------------------------------------- */
 
       recognition.onresult = (
         event
@@ -768,10 +709,6 @@ export default function TamilLanguagePage() {
           transcript.trim()
         );
       };
-
-      /* ---------------------------------------------
-         ERROR
-         --------------------------------------------- */
 
       recognition.onerror = (
         event
@@ -817,10 +754,6 @@ export default function TamilLanguagePage() {
             );
         }
       };
-
-      /* ---------------------------------------------
-         END
-         --------------------------------------------- */
 
       recognition.onend = () => {
         setIsListening(false);
@@ -1424,10 +1357,6 @@ export default function TamilLanguagePage() {
                 {currentWord.english}
               </div>
 
-              {/* =================================================
-                  TEXT TO SPEECH
-                  ================================================= */}
-
               <button
                 type="button"
                 className="listen-button"
@@ -1447,10 +1376,6 @@ export default function TamilLanguagePage() {
                   ? "⏹️ Stop Speaking"
                   : "🔊 Listen to Pronunciation"}
               </button>
-
-              {/* =================================================
-                  SPEECH RECOGNITION
-                  ================================================= */}
 
               <button
                 type="button"
@@ -1566,8 +1491,6 @@ export default function TamilLanguagePage() {
 
         <div className="tamil-phrase-grid">
 
-          {/* VANAKKAM */}
-
           <article className="tamil-phrase-card">
 
             <span>👋</span>
@@ -1609,8 +1532,6 @@ export default function TamilLanguagePage() {
             </button>
 
           </article>
-
-          {/* NANDRI */}
 
           <article className="tamil-phrase-card">
 
@@ -1654,8 +1575,6 @@ export default function TamilLanguagePage() {
 
           </article>
 
-          {/* HOW ARE YOU */}
-
           <article className="tamil-phrase-card">
 
             <span>😊</span>
@@ -1697,8 +1616,6 @@ export default function TamilLanguagePage() {
             </button>
 
           </article>
-
-          {/* I AM FINE */}
 
           <article className="tamil-phrase-card">
 
