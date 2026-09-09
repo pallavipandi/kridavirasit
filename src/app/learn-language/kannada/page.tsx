@@ -10,14 +10,18 @@ type Word = {
   category: string;
 };
 
+/* ============================================================
+   SPEECH RECOGNITION TYPES
+============================================================ */
+
 type SpeechRecognitionEventLike = Event & {
   results: {
+    length: number;
     [index: number]: {
       [index: number]: {
         transcript: string;
       };
     };
-    length: number;
   };
 };
 
@@ -29,6 +33,7 @@ interface SpeechRecognitionLike {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+
   start: () => void;
   stop: () => void;
   abort: () => void;
@@ -49,16 +54,9 @@ interface SpeechRecognitionLike {
 type SpeechRecognitionConstructor =
   new () => SpeechRecognitionLike;
 
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
-
 /* ============================================================
    KANNADA WORDS
-   ============================================================ */
+============================================================ */
 
 const words: Word[] = [
   {
@@ -161,7 +159,7 @@ const words: Word[] = [
 
 /* ============================================================
    QUIZ
-   ============================================================ */
+============================================================ */
 
 const quizQuestions = [
   {
@@ -226,14 +224,14 @@ const categories = [
 
 /* ============================================================
    COMPONENT
-   ============================================================ */
+============================================================ */
 
 export default function KannadaLanguagePage() {
   const router = useRouter();
 
   /* ============================================================
      FLASHCARD STATE
-     ============================================================ */
+  ============================================================ */
 
   const [selectedCategory, setSelectedCategory] =
     useState("All");
@@ -243,7 +241,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      QUIZ STATE
-     ============================================================ */
+  ============================================================ */
 
   const [quizIndex, setQuizIndex] =
     useState(0);
@@ -262,14 +260,14 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      LEARNING PROGRESS
-     ============================================================ */
+  ============================================================ */
 
   const [learnedWords, setLearnedWords] =
     useState<string[]>([]);
 
   /* ============================================================
      SPEECH STATE
-     ============================================================ */
+  ============================================================ */
 
   const [isSpeaking, setIsSpeaking] =
     useState(false);
@@ -288,28 +286,32 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      AUDIO REF
-     ============================================================ */
+  ============================================================ */
 
   const audioRef =
     useRef<HTMLAudioElement | null>(null);
 
   /* ============================================================
      SPEECH RECOGNITION REF
-     ============================================================ */
+  ============================================================ */
 
   const recognitionRef =
     useRef<SpeechRecognitionLike | null>(null);
 
   /* ============================================================
      WRITE STRING INTO WAV HEADER
-     ============================================================ */
+  ============================================================ */
 
   function writeString(
     view: DataView,
     offset: number,
     value: string
   ) {
-    for (let i = 0; i < value.length; i++) {
+    for (
+      let i = 0;
+      i < value.length;
+      i++
+    ) {
       view.setUint8(
         offset + i,
         value.charCodeAt(i)
@@ -319,7 +321,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      CONVERT GEMINI PCM AUDIO TO WAV
-     ============================================================ */
+  ============================================================ */
 
   const pcmToWav = (
     base64: string,
@@ -463,7 +465,7 @@ export default function KannadaLanguagePage() {
   /* ============================================================
      TEXT TO SPEECH
      GEMINI API
-     ============================================================ */
+  ============================================================ */
 
   const speakKannada = async (
     text: string
@@ -482,7 +484,7 @@ export default function KannadaLanguagePage() {
     try {
       /* ---------------------------------------------
          Stop previous audio
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       if (audioRef.current) {
         audioRef.current.pause();
@@ -495,7 +497,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          CALL NEXT.JS API
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       const response = await fetch(
         "/api/tts",
@@ -516,7 +518,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          READ RESPONSE SAFELY
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       const responseText =
         await response.text();
@@ -565,7 +567,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          CHECK API STATUS
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       if (!response.ok) {
         throw new Error(
@@ -577,7 +579,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          CHECK AUDIO
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       if (!data?.audio) {
         throw new Error(
@@ -587,7 +589,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          GEMINI PCM → WAV
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       const wavBlob =
         pcmToWav(
@@ -604,7 +606,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          CREATE AUDIO
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       const audio =
         new Audio(audioUrl);
@@ -616,7 +618,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          AUDIO PLAY
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       audio.onplay = () => {
         setIsSpeaking(true);
@@ -624,7 +626,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          AUDIO FINISHED
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       audio.onended = () => {
         setIsSpeaking(false);
@@ -639,7 +641,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          AUDIO ERROR
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       audio.onerror = () => {
         console.error(
@@ -662,7 +664,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          PLAY AUDIO
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       await audio.play();
     } catch (error) {
@@ -689,7 +691,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      STOP TEXT TO SPEECH
-     ============================================================ */
+  ============================================================ */
 
   const stopSpeaking = () => {
     if (audioRef.current) {
@@ -705,7 +707,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      SPEECH RECOGNITION
-     ============================================================ */
+  ============================================================ */
 
   const startRecording = () => {
     if (
@@ -720,9 +722,20 @@ export default function KannadaLanguagePage() {
     setSpeechError("");
     setRecognizedText("");
 
+    /*
+      Do not add SpeechRecognition to the global Window interface.
+      Instead, read it through a local type cast.
+    */
+
+    const speechWindow =
+      window as unknown as {
+        SpeechRecognition?: SpeechRecognitionConstructor;
+        webkitSpeechRecognition?: SpeechRecognitionConstructor;
+      };
+
     const SpeechRecognition =
-      window.SpeechRecognition ||
-      window.webkitSpeechRecognition;
+      speechWindow.SpeechRecognition ||
+      speechWindow.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setSpeechError(
@@ -752,7 +765,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          START
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       recognition.onstart = () => {
         setIsListening(true);
@@ -762,7 +775,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          RESULT
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       recognition.onresult = (
         event
@@ -786,7 +799,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          ERROR
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       recognition.onerror = (
         event
@@ -835,7 +848,7 @@ export default function KannadaLanguagePage() {
 
       /* ---------------------------------------------
          END
-         --------------------------------------------- */
+      --------------------------------------------- */
 
       recognition.onend = () => {
         setIsListening(false);
@@ -865,7 +878,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      STOP SPEECH RECOGNITION
-     ============================================================ */
+  ============================================================ */
 
   const stopRecording = () => {
     const recognition =
@@ -885,7 +898,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      MICROPHONE BUTTON
-     ============================================================ */
+  ============================================================ */
 
   const handleMicrophoneClick =
     () => {
@@ -898,7 +911,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      FILTER WORDS
-     ============================================================ */
+  ============================================================ */
 
   const filteredWords =
     useMemo(() => {
@@ -920,7 +933,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      SAFE CURRENT CARD
-     ============================================================ */
+  ============================================================ */
 
   const safeCurrentCard =
     Math.min(
@@ -939,7 +952,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      PROGRESS
-     ============================================================ */
+  ============================================================ */
 
   const progress =
     Math.round(
@@ -950,7 +963,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      MARK WORD AS LEARNED
-     ============================================================ */
+  ============================================================ */
 
   const markAsLearned = () => {
     if (!currentWord) {
@@ -987,7 +1000,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      NEXT CARD
-     ============================================================ */
+  ============================================================ */
 
   const nextCard = () => {
     if (
@@ -1013,7 +1026,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      PREVIOUS CARD
-     ============================================================ */
+  ============================================================ */
 
   const previousCard = () => {
     if (
@@ -1038,7 +1051,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      CHANGE CATEGORY
-     ============================================================ */
+  ============================================================ */
 
   const changeCategory = (
     category: string
@@ -1062,7 +1075,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      QUIZ
-     ============================================================ */
+  ============================================================ */
 
   const answerQuiz = (
     answer: string
@@ -1090,7 +1103,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      NEXT QUESTION
-     ============================================================ */
+  ============================================================ */
 
   const nextQuestion = () => {
     if (
@@ -1113,7 +1126,7 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      RESTART QUIZ
-     ============================================================ */
+  ============================================================ */
 
   const restartQuiz = () => {
     setQuizIndex(0);
@@ -1129,10 +1142,10 @@ export default function KannadaLanguagePage() {
 
   /* ============================================================
      RENDER
-     ============================================================ */
+  ============================================================ */
 
   return (
-    <main className="tamil-page">
+    <main>
 
       {/* =====================================================
           NAVIGATION
