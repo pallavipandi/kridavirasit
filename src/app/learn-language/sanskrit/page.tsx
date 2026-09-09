@@ -12,12 +12,12 @@ type Word = {
 
 type SpeechRecognitionEventLike = Event & {
   results: {
+    length: number;
     [index: number]: {
       [index: number]: {
         transcript: string;
       };
     };
-    length: number;
   };
 };
 
@@ -48,13 +48,6 @@ interface SpeechRecognitionLike {
 
 type SpeechRecognitionConstructor =
   new () => SpeechRecognitionLike;
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
 
 /* ============================================================
    SANSKRIT WORDS
@@ -354,11 +347,13 @@ export default function SanskritLanguagePage() {
     const dataSize =
       pcmData.length;
 
-    const buffer = new ArrayBuffer(
-      44 + dataSize
-    );
+    const buffer =
+      new ArrayBuffer(
+        44 + dataSize
+      );
 
-    const view = new DataView(buffer);
+    const view =
+      new DataView(buffer);
 
     writeString(
       view,
@@ -669,9 +664,15 @@ export default function SanskritLanguagePage() {
     setSpeechError("");
     setRecognizedText("");
 
+    const browserWindow =
+      window as unknown as {
+        SpeechRecognition?: SpeechRecognitionConstructor;
+        webkitSpeechRecognition?: SpeechRecognitionConstructor;
+      };
+
     const SpeechRecognition =
-      window.SpeechRecognition ||
-      window.webkitSpeechRecognition;
+      browserWindow.SpeechRecognition ||
+      browserWindow.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setSpeechError(
