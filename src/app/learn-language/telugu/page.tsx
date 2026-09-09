@@ -12,12 +12,12 @@ type Word = {
 
 type SpeechRecognitionEventLike = Event & {
   results: {
+    length: number;
     [index: number]: {
       [index: number]: {
         transcript: string;
       };
     };
-    length: number;
   };
 };
 
@@ -48,13 +48,6 @@ interface SpeechRecognitionLike {
 
 type SpeechRecognitionConstructor =
   new () => SpeechRecognitionLike;
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
 
 /* ============================================================
    TELUGU WORDS
@@ -721,8 +714,18 @@ export default function TeluguLanguagePage() {
     setRecognizedText("");
 
     const SpeechRecognition =
-      window.SpeechRecognition ||
-      window.webkitSpeechRecognition;
+      (
+        window as unknown as {
+          SpeechRecognition?: SpeechRecognitionConstructor;
+          webkitSpeechRecognition?: SpeechRecognitionConstructor;
+        }
+      ).SpeechRecognition ||
+      (
+        window as unknown as {
+          SpeechRecognition?: SpeechRecognitionConstructor;
+          webkitSpeechRecognition?: SpeechRecognitionConstructor;
+        }
+      ).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setSpeechError(
@@ -945,7 +948,7 @@ export default function TeluguLanguagePage() {
     Math.round(
       (learnedWords.length /
         words.length) *
-        100
+      100
     );
 
   /* ============================================================
