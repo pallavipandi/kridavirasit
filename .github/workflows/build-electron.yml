@@ -1,0 +1,57 @@
+name: Build KRIDAVIRASAT Electron
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js
+        run: npm run build
+
+      - name: Prepare Next.js standalone files
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path ".next\standalone\.next\static" | Out-Null
+
+          Copy-Item `
+            -Recurse `
+            -Force `
+            ".next\static\*" `
+            ".next\standalone\.next\static\"
+
+      - name: Copy public files
+        shell: powershell
+        run: |
+          if (Test-Path "public") {
+            Copy-Item `
+              -Recurse `
+              -Force `
+              "public" `
+              ".next\standalone\public"
+          }
+
+      - name: Build Electron application
+        run: npm run electron:build
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v6
+        with:
+          name: KRIDAVIRASAT-Windows
+          path: |
+            dist/*.exe
+          if-no-files-found: error
