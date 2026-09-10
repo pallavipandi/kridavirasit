@@ -1050,10 +1050,10 @@ export default function HomePage() {
                   ❈
                 </div>
 
-                {/* Fallback icon */}
+                {/* Decorative icon */}
 
-                <span className="game-icon">
-                  {game.icon}
+                <span className="game-icon" aria-hidden="true">
+                  🎲
                 </span>
 
                 {/* Location */}
