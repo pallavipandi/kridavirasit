@@ -46,7 +46,7 @@ jobs:
           }
 
       - name: Build Electron application
-        run: npm run electron:build
+        run: npx electron-builder --win nsis --config electron-builder.yml
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v6
