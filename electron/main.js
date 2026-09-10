@@ -6,15 +6,21 @@ let nextServer;
 let mainWindow;
 
 function startNextServer() {
-  const serverPath = path.join(__dirname, "..", ".next", "standalone", "server.js");
+  const appPath = app.isPackaged
+    ? path.join(process.resourcesPath, "app")
+    : path.join(__dirname, "..");
+
+  const serverPath = app.isPackaged
+    ? path.join(appPath, ".next", "standalone", "server.js")
+    : path.join(appPath, ".next", "standalone", "server.js");
 
   nextServer = spawn(process.execPath, [serverPath], {
-    cwd: path.join(__dirname, "..", ".next", "standalone"),
+    cwd: path.dirname(serverPath),
     env: {
       ...process.env,
       NODE_ENV: "production",
       PORT: "3000",
-      HOSTNAME: "localhost",
+      HOSTNAME: "127.0.0.1",
     },
     shell: false,
   });
@@ -36,12 +42,13 @@ function createWindow() {
     minHeight: 700,
     show: false,
     webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
 
-  mainWindow.loadURL("http://localhost:3000");
+  mainWindow.loadURL("http://127.0.0.1:3000");
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
@@ -57,7 +64,7 @@ app.whenReady().then(() => {
 
   setTimeout(() => {
     createWindow();
-  }, 2000);
+  }, 3000);
 });
 
 app.on("window-all-closed", () => {
