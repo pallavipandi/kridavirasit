@@ -1,0 +1,159 @@
+name: Build KRIDAVIRASAT EXE
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-exe:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js standalone
+        run: npm run build
+
+      - name: Prepare standalone application
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path package\app | Out-Null
+
+          Copy-Item -Recurse -Force .next\standalone\* package\app\
+
+          if (Test-Path public) {
+            Copy-Item -Recurse -Force public package\app\public
+          }
+
+          New-Item -ItemType Directory -Force -Path package\app\.next\static | Out-Null
+          Copy-Item -Recurse -Force .next\static\* package\app\.next\static\
+
+      - name: Copy Node.js runtime
+        shell: powershell
+        run: |
+          $nodePath = (Get-Command node).Source
+          Copy-Item $nodePath package\node.exe
+
+      - name: Create launcher
+        shell: powershell
+        run: |
+          @'
+          using System;
+          using System.Diagnostics;
+          using System.Net.Http;
+          using System.Threading;
+          using System.Threading.Tasks;
+
+          class Program
+          {
+              static async Task Main()
+              {
+                  string baseDir = AppContext.BaseDirectory;
+                  string nodePath = System.IO.Path.Combine(baseDir, "node.exe");
+                  string serverPath = System.IO.Path.Combine(baseDir, "app", "server.js");
+
+                  var process = new Process();
+                  process.StartInfo.FileName = nodePath;
+                  process.StartInfo.Arguments = "\"" + serverPath + "\"";
+                  process.StartInfo.WorkingDirectory =
+                      System.IO.Path.Combine(baseDir, "app");
+                  process.StartInfo.UseShellExecute = false;
+                  process.StartInfo.CreateNoWindow = true;
+
+                  process.Start();
+
+                  using var client = new HttpClient();
+
+                  for (int i = 0; i < 60; i++)
+                  {
+                      try
+                      {
+                          var response = await client.GetAsync("http://localhost:3000");
+
+                          if (response.IsSuccessStatusCode)
+                          {
+                              Process.Start(new ProcessStartInfo
+                              {
+                                  FileName = "http://localhost:3000",
+                                  UseShellExecute = true
+                              });
+
+                              break;
+                          }
+                      }
+                      catch
+                      {
+                      }
+
+                      await Task.Delay(500);
+                  }
+
+                  await process.WaitForExitAsync();
+              }
+          }
+          '@ | Set-Content launcher.cs
+
+      - name: Build launcher EXE
+        shell: powershell
+        run: |
+          dotnet new console -n Launcher -o launcher-project --force
+          Copy-Item launcher.cs launcher-project\Program.cs -Force
+
+          dotnet publish launcher-project `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o package
+
+      - name: Create installer script
+        shell: powershell
+        run: |
+          @'
+          [Setup]
+          AppName=KRIDAVIRASAT
+          AppVersion=1.0.0
+          DefaultDirName={autopf}\KRIDAVIRASAT
+          DefaultGroupName=KRIDAVIRASAT
+          OutputDir=installer
+          OutputBaseFilename=KRIDAVIRASAT-Setup
+          Compression=lzma
+          SolidCompression=yes
+          ArchitecturesInstallIn64BitMode=x64
+
+          [Files]
+          Source: "package\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+
+          [Icons]
+          Name: "{group}\KRIDAVIRASAT"; Filename: "{app}\Launcher.exe"
+          Name: "{commondesktop}\KRIDAVIRASAT"; Filename: "{app}\Launcher.exe"
+
+          [Run]
+          Filename: "{app}\Launcher.exe"; Description: "Launch KRIDAVIRASAT"; Flags: nowait postinstall skipifsilent
+          '@ | Set-Content installer.iss
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: |
+          choco install innosetup -y
+
+      - name: Build installer EXE
+        shell: powershell
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
+      - name: Upload KRIDAVIRASAT EXE
+        uses: actions/upload-artifact@v6
+        with:
+          name: KRIDAVIRASAT-Windows
+          path: installer\KRIDAVIRASAT-Setup.exe
