@@ -2,6 +2,8 @@
   "name": "kridavirasat",
   "version": "0.1.0",
   "private": true,
+  "description": "KRIDAVIRASAT - Rediscover the Heritage of Indian Play",
+  "author": "KRIDAVIRASAT",
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
