@@ -45,8 +45,8 @@ jobs:
               ".next\standalone\public"
           }
 
-      - name: Build Electron application
-        run: npx electron-builder --win nsis --config electron-builder.yml
+      - name: Build Electron app
+        run: npx electron-builder --win nsis --config electron-builder.yml --publish never
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v6
