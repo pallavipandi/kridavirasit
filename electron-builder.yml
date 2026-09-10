@@ -1,0 +1,26 @@
+appId: com.kridavirasat.app
+productName: KRIDAVIRASAT
+
+directories:
+  output: dist
+
+files:
+  - electron/**
+  - .next/standalone/**
+  - .next/static/**
+  - public/**
+  - package.json
+
+extraMetadata:
+  main: electron/main.js
+
+win:
+  target:
+    - nsis
+  icon: public/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
