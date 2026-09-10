@@ -8,7 +8,6 @@ files:
   - electron/**
   - .next/standalone/**
   - .next/static/**
-  - public/**
   - package.json
 
 extraMetadata:
@@ -17,7 +16,6 @@ extraMetadata:
 win:
   target:
     - nsis
-  icon: public/icon.ico
 
 nsis:
   oneClick: false
