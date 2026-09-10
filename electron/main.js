@@ -10,19 +10,23 @@ function startNextServer() {
     ? path.join(process.resourcesPath, "app")
     : path.join(__dirname, "..");
 
-  const serverPath = app.isPackaged
-    ? path.join(appPath, ".next", "standalone", "server.js")
-    : path.join(appPath, ".next", "standalone", "server.js");
+  const serverPath = path.join(
+    appPath,
+    ".next",
+    "standalone",
+    "server.js"
+  );
 
   nextServer = spawn(process.execPath, [serverPath], {
     cwd: path.dirname(serverPath),
     env: {
       ...process.env,
+      ELECTRON_RUN_AS_NODE: "1",
       NODE_ENV: "production",
       PORT: "3000",
       HOSTNAME: "127.0.0.1",
     },
-    shell: false,
+    windowsHide: true,
   });
 
   nextServer.stdout.on("data", (data) => {
@@ -31,6 +35,10 @@ function startNextServer() {
 
   nextServer.stderr.on("data", (data) => {
     console.error(`Next.js error: ${data}`);
+  });
+
+  nextServer.on("error", (error) => {
+    console.error("Failed to start Next.js:", error);
   });
 }
 
@@ -41,6 +49,7 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 700,
     show: false,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
