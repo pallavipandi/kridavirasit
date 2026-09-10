@@ -6,12 +6,11 @@ directories:
 
 files:
   - electron/**
-  - .next/standalone/**
-  - .next/static/**
   - package.json
 
-extraMetadata:
-  main: electron/main.js
+extraResources:
+  - from: ".next/standalone"
+    to: "next-server"
 
 win:
   target:
