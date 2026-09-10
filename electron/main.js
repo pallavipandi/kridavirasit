@@ -3,43 +3,67 @@ const { spawn } = require("child_process");
 const path = require("path");
 const http = require("http");
 
-let nextServer;
-let mainWindow;
+let nextServer = null;
+let mainWindow = null;
 
 const PORT = 3000;
 const HOST = "127.0.0.1";
 
-function getAppPath() {
+function getNextServerPath() {
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, "app");
+    return path.join(
+      process.resourcesPath,
+      "next-server",
+      "server.js"
+    );
   }
 
-  return path.join(__dirname, "..");
-}
-
-function startNextServer() {
-  const appPath = getAppPath();
-
-  const serverPath = path.join(
-    appPath,
+  return path.join(
+    __dirname,
+    "..",
     ".next",
     "standalone",
     "server.js"
   );
+}
 
-  console.log("App path:", appPath);
-  console.log("Next server path:", serverPath);
+function getNextServerCwd() {
+  if (app.isPackaged) {
+    return path.join(
+      process.resourcesPath,
+      "next-server"
+    );
+  }
+
+  return path.join(
+    __dirname,
+    "..",
+    ".next",
+    "standalone"
+  );
+}
+
+function startNextServer() {
+  const serverPath = getNextServerPath();
+  const serverCwd = getNextServerCwd();
+
+  console.log("=================================");
+  console.log("KRIDAVIRASAT Electron");
+  console.log("=================================");
+  console.log("Packaged:", app.isPackaged);
+  console.log("Server path:", serverPath);
+  console.log("Server cwd:", serverCwd);
 
   nextServer = spawn(process.execPath, [serverPath], {
-    cwd: path.dirname(serverPath),
+    cwd: serverCwd,
     env: {
       ...process.env,
       ELECTRON_RUN_AS_NODE: "1",
       NODE_ENV: "production",
       PORT: String(PORT),
-      HOSTNAME: HOST,
+      HOSTNAME: HOST
     },
-    windowsHide: true,
+    windowsHide: true
   });
 
   nextServer.stdout.on("data", (data) => {
@@ -55,52 +79,54 @@ function startNextServer() {
   });
 
   nextServer.on("exit", (code, signal) => {
-    console.log("Next.js server stopped:", { code, signal });
+    console.log(
+      "Next.js stopped.",
+      "code:",
+      code,
+      "signal:",
+      signal
+    );
   });
 }
 
-function waitForServer(callback) {
-  let attempts = 0;
-  const maxAttempts = 60;
+function waitForServer() {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+    const maxAttempts = 60;
 
-  const check = () => {
-    attempts++;
+    function check() {
+      attempts++;
 
-    const request = http.get(
-      `http://${HOST}:${PORT}`,
-      (response) => {
-        response.resume();
+      const request = http.get(
+        `http://${HOST}:${PORT}`,
+        (response) => {
+          response.resume();
 
-        console.log("Next.js server is ready.");
-        callback();
-      }
-    );
+          console.log("Next.js server is ready.");
+          resolve();
+        }
+      );
 
-    request.on("error", () => {
-      if (attempts >= maxAttempts) {
-        console.error("Next.js server did not start.");
-
-        if (mainWindow) {
-          mainWindow.loadURL(
-            `data:text/html,
-            <html>
-              <body style="font-family: Arial; padding: 40px;">
-                <h1>KRIDAVIRASAT could not start</h1>
-                <p>The Next.js server did not start correctly.</p>
-                <p>Please check the Electron logs.</p>
-              </body>
-            </html>`
+      request.on("error", () => {
+        if (attempts >= maxAttempts) {
+          reject(
+            new Error(
+              "Next.js server did not start within the expected time."
+            )
           );
+          return;
         }
 
-        return;
-      }
+        setTimeout(check, 500);
+      });
 
-      setTimeout(check, 500);
-    });
-  };
+      request.setTimeout(1000, () => {
+        request.destroy();
+      });
+    }
 
-  check();
+    check();
+  });
 }
 
 function createWindow() {
@@ -115,8 +141,8 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
-      nodeIntegration: false,
-    },
+      nodeIntegration: false
+    }
   });
 
   mainWindow.loadURL(`http://${HOST}:${PORT}`);
@@ -125,30 +151,53 @@ function createWindow() {
     mainWindow.show();
   });
 
-  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription) => {
-    console.error(
-      "Electron failed to load page:",
-      errorCode,
-      errorDescription
-    );
-  });
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (event, errorCode, errorDescription) => {
+      console.error(
+        "Electron failed to load page:",
+        errorCode,
+        errorDescription
+      );
+    }
+  );
+
+  mainWindow.webContents.openDevTools();
 
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
 
-app.whenReady().then(() => {
-  startNextServer();
+app.whenReady().then(async () => {
+  try {
+    startNextServer();
 
-  waitForServer(() => {
+    await waitForServer();
+
     createWindow();
-  });
+  } catch (error) {
+    console.error("KRIDAVIRASAT startup failed:", error);
+
+    if (mainWindow) {
+      mainWindow.loadURL(
+        `data:text/html,
+        <html>
+          <body style="font-family:Arial;padding:40px">
+            <h1>KRIDAVIRASAT could not start</h1>
+            <p>Next.js server failed to start.</p>
+            <p>Please check the application logs.</p>
+          </body>
+        </html>`
+      );
+    }
+  }
 });
 
 app.on("window-all-closed", () => {
   if (nextServer) {
     nextServer.kill();
+    nextServer = null;
   }
 
   if (process.platform !== "darwin") {
